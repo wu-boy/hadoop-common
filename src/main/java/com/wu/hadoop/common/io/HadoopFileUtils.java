@@ -2,17 +2,42 @@ package com.wu.hadoop.common.io;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
+import org.apache.hadoop.io.IOUtils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * HDFS工具类
  * @author wusq
- * @date 2018-04-17
+ * @date 2018-05-23
  */
 public class HadoopFileUtils {
+
+    /**
+     * 向文件追加数据
+     * @param conf
+     * @param uri
+     * @param content
+     */
+    public static void append(Configuration conf, String uri, String content){
+        FileSystem fs = null;
+        FSDataOutputStream output = null;
+        try{
+            fs = FileSystem.get(conf);
+            output = fs.append(new Path(uri));
+            byte[] bytes = content.getBytes();
+            output.write(bytes, 0, bytes.length);
+            output.flush();
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            close(output, fs);
+        }
+    }
 
     /**
      * 复制一个目录下的所有文件
@@ -100,7 +125,7 @@ public class HadoopFileUtils {
         }catch(Exception e){
             e.printStackTrace();
         }finally{
-            close(output, null, fs);
+            close(output, fs);
         }
     }
 
@@ -225,6 +250,33 @@ public class HadoopFileUtils {
         }
     }
 
+    /**
+     * 读取文件
+     * @param conf
+     * @param uri
+     * @return List<String>
+     */
+    public static List<String> readLines(Configuration conf, String uri){
+        List<String> result = new ArrayList<>();
+        FileSystem fs = null;
+        FSDataInputStream is = null;
+        try{
+            fs = FileSystem.get(conf);
+            is = fs.open(new Path(uri));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                result.add(line + "");
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally{
+            IOUtils.closeStream(is);
+            close(fs);
+        }
+        return result;
+    }
+
     public static void rename(Configuration conf, Path src, Path tar){
         FileSystem fs = null;
         try {
@@ -242,13 +294,16 @@ public class HadoopFileUtils {
      * @param fs 文件系统
      */
     static void close(FileSystem fs){
-        try {
-            if(fs != null){
-                fs.closeAll();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        close(null, null, fs);
+    }
+
+    /**
+     * 关闭资源
+     * @param output 输出流
+     * @param fs 文件系统
+     */
+    static void close(FSDataOutputStream output, FileSystem fs){
+        close(output, null, fs);
     }
 
     /**
